@@ -1,0 +1,27 @@
+services:
+  app:
+    build: . # Looks for the Dockerfile in the current directory
+    container_name: php-app
+    restart: unless-stopped
+    volumes:
+      - ./main:/var/www/html
+    # If the external DB is on the host machine, use this:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - app-network
+
+  webserver:
+    image: nginx:alpine
+    container_name: nginx-server
+    ports:
+      - "8080:80"
+    volumes:
+      - ./main:/var/www/html
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
