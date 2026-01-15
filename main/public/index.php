@@ -43,13 +43,18 @@ $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
 <body>
     <div class="container">
         <div class="card" style="margin-top: 20px;">
-            <h2>GREEN TUITION</h2>
+            <div class="row" style="justify-content: space-between; align-items: center;">
+                <h2 style="margin: 0; text-align: left;">GREEN TUITION</h2>
+                <a href="logout.php" style="color: white; display: flex; align-items: center; text-decoration: none; border: 2px solid #f1310bff; background-color: #ff5454ff; padding: 5px 10px; border-radius: 10px;">
+                    <span style="font-size: 14px; font-weight: 600;">Logout</span>
+                    <!-- <img src="assets/exit.png" alt="Logout" style="width: 24px; height: 24px; margin-right: 5px;"> -->
+                </a>
+            </div>
             <div class="row">
                 <button onclick="openTab('marketing', this)" class="btn tab-btn active" style="flex:1; text-align:center; background-color: #10b981; transform: scale(1);">Marketing</button>
                 <button onclick="openTab('teacher', this)" class="btn tab-btn" style="flex:1; text-align:center; background-color: #3b82f6; transform: scale(1);">Teacher</button>
                 <button onclick="openTab('tution', this)" class="btn tab-btn" style="flex:1; text-align:center; background-color: #8b5cf6; transform: scale(1);">Tution</button>
                 <button onclick="openTab('payment', this)" class="btn tab-btn" style="flex:1; text-align:center; background-color: #f59e0b; transform: scale(1);">Payment</button>
-                <!-- <a href="logout.php" class="btn danger" style="background-color: #dc2626; color: white;">Logout</a> -->
             </div>
         </div>
 
