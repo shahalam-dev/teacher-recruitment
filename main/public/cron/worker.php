@@ -6,8 +6,16 @@ require_once __DIR__ . '/../../src/Services/MessengerService.php';
 $options = getopt("", ["channel_id:"]);
 $channelId = $options['channel_id'] ?? null;
 
-if (!$channelId)
+if (!$channelId) {
+    file_put_contents(__DIR__ . '/worker_error.log', "[" . date('Y-m-d H:i:s') . "] No channel ID provided.\n", FILE_APPEND);
     exit("No channel ID provided.\n");
+}
+
+function logWorker($message, $channelId)
+{
+    $logMsg = "[" . date('Y-m-d H:i:s') . "] [Channel $channelId] $message\n";
+    file_put_contents(__DIR__ . '/worker.log', $logMsg, FILE_APPEND);
+}
 
 try {
     // 1. Get the oldest running campaign for THIS channel
@@ -21,67 +29,61 @@ try {
     $campStmt->execute([$channelId]);
     $campaign = $campStmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$campaign)
+    if (!$campaign) {
+        // No active campaign for this channel
         exit;
+    }
 
     // 2. Fetch templates
     $msgStmt = $pdo->prepare("SELECT content FROM message_templates WHERE group_id = ?");
     $msgStmt->execute([$campaign['group_id']]);
     $allMessages = $msgStmt->fetchAll(PDO::FETCH_COLUMN);
 
-    // 3. Fetch a batch (e.g., 10) of recipients
-    $batchSize = 10;
+    if (empty($allMessages)) {
+        logWorker("No messages found in Group ID {$campaign['group_id']}.", $channelId);
+        exit;
+    }
+
+    // 3. Fetch ONE recipient
     $recipientStmt = $pdo->prepare("
         SELECT id, phone_number 
         FROM marketing_user_number 
         WHERE list_id = ? AND user_id = ? AND is_sent = 0 
-        LIMIT $batchSize
+        LIMIT 1
     ");
     $recipientStmt->execute([$campaign['list_id'], $campaign['user_id']]);
-    $recipients = $recipientStmt->fetchAll(PDO::FETCH_ASSOC);
+    $recipient = $recipientStmt->fetch(PDO::FETCH_ASSOC);
 
-    if (empty($recipients)) {
+    if (!$recipient) {
+        // No more numbers to send? Mark campaign as completed
         $pdo->prepare("UPDATE campaigns SET status = 'completed' WHERE id = ?")->execute([$campaign['id']]);
+        logWorker("Campaign {$campaign['id']} completed.", $channelId);
         exit;
     }
 
-    // 4. PRE-UPDATE: Mark IDs as "processing" (status 3) to prevent other workers from picking them
-    $ids = array_column($recipients, 'id');
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $pdo->prepare("UPDATE marketing_user_number SET is_sent = 3 WHERE id IN ($placeholders)")->execute($ids);
+    // 4. Process the single recipient
+    $phone = $recipient['phone_number'];
+    $message = $allMessages[array_rand($allMessages)];
 
-    $successIds = [];
-    $failedIds = [];
+    $response = MessengerService::send(
+        $campaign['api_endpoint'],
+        $campaign['api_key'],
+        $phone,
+        $message
+    );
 
-    // 5. Process the batch
-    foreach ($recipients as $recipient) {
-        $message = $allMessages[array_rand($allMessages)];
-
-        $response = MessengerService::send(
-            $campaign['api_endpoint'],
-            $campaign['api_key'],
-            $recipient['phone_number'],
-            $message
-        );
-
-        if ($response) {
-            $successIds[] = $recipient['id'];
-        } else {
-            $failedIds[] = $recipient['id'];
-        }
+    if ($response) {
+        $update = $pdo->prepare("UPDATE marketing_user_number SET is_sent = 1 WHERE id = ?");
+        $update->execute([$recipient['id']]);
+        logWorker("✓ Sent to $phone", $channelId);
+    } else {
+        $update = $pdo->prepare("UPDATE marketing_user_number SET is_sent = 2 WHERE id = ?");
+        $update->execute([$recipient['id']]);
+        logWorker("❌ Failed to send to $phone", $channelId);
     }
 
-    // 6. BATCH UPDATE: Update database once for success and once for failure
-    if (!empty($successIds)) {
-        $placeholders = implode(',', array_fill(0, count($successIds), '?'));
-        $pdo->prepare("UPDATE marketing_user_number SET is_sent = 1 WHERE id IN ($placeholders)")->execute($successIds);
-    }
-
-    if (!empty($failedIds)) {
-        $placeholders = implode(',', array_fill(0, count($failedIds), '?'));
-        $pdo->prepare("UPDATE marketing_user_number SET is_sent = 2 WHERE id IN ($placeholders)")->execute($failedIds);
-    }
+    // No sleep needed for single execution
 
 } catch (Exception $e) {
-    error_log("Worker $channelId Error: " . $e->getMessage());
+    file_put_contents(__DIR__ . '/worker_error.log', "[" . date('Y-m-d H:i:s') . "] Worker $channelId Error: " . $e->getMessage() . "\n", FILE_APPEND);
 }
