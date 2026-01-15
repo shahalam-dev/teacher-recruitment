@@ -39,11 +39,25 @@ if (isset($_GET['delete_group'])) {
     exit;
 }
 
-// 3. Fetch Groups
+// 3. Fetch Groups with Pagination
 $groups = [];
 try {
-    $stmt = $pdo->prepare("SELECT * FROM template_groups WHERE user_id = ? ORDER BY created_at DESC");
-    $stmt->execute([$user_id]);
+    $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+    $limit = 5;
+    $offset = ($page - 1) * $limit;
+
+    // Count total groups
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM template_groups WHERE user_id = ?");
+    $countStmt->execute([$user_id]);
+    $total_groups = $countStmt->fetchColumn();
+    $total_pages = ceil($total_groups / $limit);
+
+    // Fetch groups
+    $stmt = $pdo->prepare("SELECT * FROM template_groups WHERE user_id = :user_id ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+    $stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+    $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $groups = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
     if (!isset($_SESSION['toast'])) {
@@ -98,7 +112,7 @@ try {
                                 $countStmt = $pdo->prepare("SELECT COUNT(*) FROM message_templates WHERE group_id = ?");
                                 $countStmt->execute($countParams);
                                 $varCount = $countStmt->fetchColumn();
-                                ?>
+                            ?>
                                 <tr>
                                     <td><strong><?php echo htmlspecialchars($g['group_name']); ?></strong></td>
                                     <td><?php echo $varCount; ?> Variations</td>
@@ -116,6 +130,23 @@ try {
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Controls -->
+            <?php if ($total_pages > 1): ?>
+                <div class="row" style="margin-top: 20px; justify-content: center; align-items: center; gap: 10px;">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?>" class="btn secondary" style="padding: 8px 16px;">&laquo; Previous</a>
+                    <?php endif; ?>
+
+                    <span class="muted" style="color: var(--muted); font-weight: 500;">
+                        Page <?php echo $page; ?> of <?php echo $total_pages; ?>
+                    </span>
+
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?page=<?php echo $page + 1; ?>" class="btn secondary" style="padding: 8px 16px;">Next &raquo;</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="row" style="margin-top: 20px;">

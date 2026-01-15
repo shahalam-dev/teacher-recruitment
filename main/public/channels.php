@@ -34,19 +34,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_channel'])) {
     exit;
 }
 
-// 3. Fetch User's Channels
-$stmt = $pdo->prepare("SELECT * FROM channels WHERE user_id = ? ORDER BY created_at DESC");
-$stmt->execute([$user_id]);
+// 3. Fetch User's Channels with Pagination
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 5;
+$offset = ($page - 1) * $limit;
+
+// Count total channels
+$count_stmt = $pdo->prepare("SELECT COUNT(*) FROM channels WHERE user_id = ?");
+$count_stmt->execute([$user_id]);
+$total_channels = $count_stmt->fetchColumn();
+$total_pages = ceil($total_channels / $limit);
+
+// Fetch channels
+$stmt = $pdo->prepare("SELECT * FROM channels WHERE user_id = :user_id ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+$stmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+$stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
 $myChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Manage API Channels | Marketing Manager</title>
     <link rel="stylesheet" href="assets/style.css">
 </head>
+
 <body>
     <div class="container">
         <h1>🔌 API Channel Management</h1>
@@ -86,23 +102,42 @@ $myChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
                     </thead>
                     <tbody>
                         <?php if (empty($myChannels)): ?>
-                            <tr><td colspan="4" style="text-align:center;">No channels configured yet.</td></tr>
+                            <tr>
+                                <td colspan="4" style="text-align:center;">No channels configured yet.</td>
+                            </tr>
                         <?php else: ?>
                             <?php foreach ($myChannels as $chan): ?>
-                            <tr>
-                                <td><?php echo htmlspecialchars($chan['name']); ?></td>
-                                <td><code><?php echo htmlspecialchars($chan['api_endpoint']); ?></code></td>
-                                <td><span class="badge ok">Active</span></td>
-                                <td><?php echo $chan['created_at']; ?></td>
-                                <td>
-                                    <a href="#" class="btn" style="background-color: #e74c3c; padding: 5px 10px; font-size: 0.8rem;" onclick="event.preventDefault(); Popup.confirm('Delete this channel?', () => window.location.href='?delete_channel=<?php echo $chan['id']; ?>', 'Confirm Deletion')">Delete</a>
-                                </td>
-                            </tr>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($chan['name']); ?></td>
+                                    <td><code><?php echo htmlspecialchars($chan['api_endpoint']); ?></code></td>
+                                    <td><span class="badge ok">Active</span></td>
+                                    <td><?php echo $chan['created_at']; ?></td>
+                                    <td>
+                                        <a href="#" class="btn" style="background-color: #e74c3c; padding: 5px 10px; font-size: 0.8rem;" onclick="event.preventDefault(); Popup.confirm('Delete this channel?', () => window.location.href='?delete_channel=<?php echo $chan['id']; ?>', 'Confirm Deletion')">Delete</a>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Controls -->
+            <?php if (isset($total_pages) && $total_pages > 1): ?>
+                <div class="row" style="margin-top: 20px; justify-content: center; align-items: center; gap: 10px;">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?>" class="btn secondary" style="padding: 8px 16px;">&laquo; Previous</a>
+                    <?php endif; ?>
+
+                    <span class="muted" style="color: var(--muted); font-weight: 500;">
+                        Page <?php echo $page; ?> of <?php echo $total_pages; ?>
+                    </span>
+
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?page=<?php echo $page + 1; ?>" class="btn secondary" style="padding: 8px 16px;">Next &raquo;</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="row" style="margin-top: 20px;">
@@ -124,4 +159,5 @@ $myChannels = $stmt->fetchAll(PDO::FETCH_ASSOC);
     <!-- Custom Scripts -->
     <script src="assets/form.js"></script>
 </body>
+
 </html>

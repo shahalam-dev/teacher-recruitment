@@ -49,6 +49,14 @@ h2 {
     margin-top: 0;
 }
 
+.text-center {
+    text-align: center;
+}
+
+.text-gray {
+    color: var(--muted);
+}
+
 /* Flex Grid */
 .row {
     display: flex;

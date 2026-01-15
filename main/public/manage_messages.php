@@ -23,11 +23,20 @@ if (!$group) {
 
 // Handle New Message
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_message'])) {
-    $content = trim($_POST['content']);
-    if (!empty($content)) {
-        $stmt = $pdo->prepare("INSERT INTO message_templates (content, group_id, user_id) VALUES (?, ?, ?)");
-        $stmt->execute([$content, $group_id, $user_id]);
-        $_SESSION['toast'] = ['message' => "✅ Variation added!", 'type' => "success"];
+    // Check limit
+    $countStmt = $pdo->prepare("SELECT COUNT(*) FROM message_templates WHERE group_id = ?");
+    $countStmt->execute([$group_id]);
+    $currentCount = $countStmt->fetchColumn();
+
+    if ($currentCount >= 10) {
+        $_SESSION['toast'] = ['message' => "❌ Limit reached! You can only add up to 10 variations.", 'type' => "error"];
+    } else {
+        $content = trim($_POST['content']);
+        if (!empty($content)) {
+            $stmt = $pdo->prepare("INSERT INTO message_templates (content, group_id, user_id) VALUES (?, ?, ?)");
+            $stmt->execute([$content, $group_id, $user_id]);
+            $_SESSION['toast'] = ['message' => "✅ Variation added!", 'type' => "success"];
+        }
     }
     header("Location: manage_messages.php?group_id=" . $group_id);
     exit;
@@ -73,7 +82,12 @@ $variations = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         style="width:100%; border:1px solid #ddd; font-family: inherit;"></textarea>
                     <small>Add 5-10 variations to avoid spam detection.</small>
                 </div>
-                <button type="submit" name="add_message" class="btn">Add Variation</button>
+                <?php if (isset($total_messages) && $total_messages >= 10): ?>
+                    <button type="button" class="btn" style="background-color: #95a5a6; cursor: not-allowed;" disabled>Limit Reached (Max 10)</button>
+                    <p style="color: #e74c3c; font-size: 0.9rem; margin-top: 5px;">You have reached the maximum limit of 10 variations for this group.</p>
+                <?php else: ?>
+                    <button type="submit" name="add_message" class="btn">Add Variation</button>
+                <?php endif; ?>
             </form>
         </div>
 
@@ -83,9 +97,8 @@ $variations = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 <table>
                     <thead>
                         <tr>
-                            <th>ID</th>
                             <th>Content</th>
-                            <th>Actions</th>
+                            <th style="text-align: right;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -96,9 +109,8 @@ $variations = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <?php else: ?>
                             <?php foreach ($variations as $var): ?>
                                 <tr>
-                                    <td>#<?php echo $var['id']; ?></td>
                                     <td style="white-space: pre-wrap;"><?php echo htmlspecialchars($var['content']); ?></td>
-                                    <td>
+                                    <td style="text-align: right;">
                                         <a href="#" class="btn"
                                             style="background-color: #e74c3c; padding: 5px 10px; font-size: 0.8rem;"
                                             onclick="event.preventDefault(); Popup.confirm('Remove this variation?', () => window.location.href='?group_id=<?php echo $group_id; ?>&delete_msg=<?php echo $var['id']; ?>', 'Confirm Deletion')">Delete</a>

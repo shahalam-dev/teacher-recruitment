@@ -25,7 +25,7 @@ $campaignQuery = $pdo->prepare("
     JOIN channels ch ON c.channel_id = ch.id
     JOIN contact_lists cl ON c.list_id = cl.id
     WHERE c.user_id = ? AND c.status = 'running'
-    ORDER BY c.created_at DESC
+    ORDER BY c.created_at DESC LIMIT 5
 ");
 $campaignQuery->execute([$user_id]);
 $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
@@ -33,20 +33,23 @@ $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Dashboard | Marketing Manager</title>
-    <link rel="stylesheet" href="assets/style.css"> </head>
+    <link rel="stylesheet" href="assets/style.css?v=<?php echo filemtime('assets/style.css'); ?>">
+</head>
+
 <body>
     <div class="container">
         <div class="card" style="margin-top: 20px;">
             <h2>GREEN TUITION</h2>
             <div class="row">
-                <button onclick="openTab('marketing')" class="btn secondary tab-btn active" style="flex:1; text-align:center;">Marketing</button>
-                <button onclick="openTab('teacher')" class="btn secondary tab-btn" style="flex:1; text-align:center;">Teacher</button>
-                <button onclick="openTab('tution')" class="btn secondary tab-btn" style="flex:1; text-align:center;">Tution</button>
-                <button onclick="openTab('payment')" class="btn secondary tab-btn" style="flex:1; text-align:center;">Payment</button>
-                <a href="logout.php" class="btn danger" style="background-color: #dc2626; color: white;">Logout</a>
+                <button onclick="openTab('marketing', this)" class="btn tab-btn active" style="flex:1; text-align:center; background-color: #10b981; transform: scale(1);">Marketing</button>
+                <button onclick="openTab('teacher', this)" class="btn tab-btn" style="flex:1; text-align:center; background-color: #3b82f6; transform: scale(1);">Teacher</button>
+                <button onclick="openTab('tution', this)" class="btn tab-btn" style="flex:1; text-align:center; background-color: #8b5cf6; transform: scale(1);">Tution</button>
+                <button onclick="openTab('payment', this)" class="btn tab-btn" style="flex:1; text-align:center; background-color: #f59e0b; transform: scale(1);">Payment</button>
+                <!-- <a href="logout.php" class="btn danger" style="background-color: #dc2626; color: white;">Logout</a> -->
             </div>
         </div>
 
@@ -76,15 +79,17 @@ $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
                         </thead>
                         <tbody>
                             <?php if (empty($activeCampaigns)): ?>
-                                <tr><td colspan="4" style="text-align:center;">No active campaigns running.</td></tr>
+                                <tr>
+                                    <td colspan="4" style="text-align:center;">No active campaigns running.</td>
+                                </tr>
                             <?php else: ?>
                                 <?php foreach ($activeCampaigns as $camp): ?>
-                                <tr>
-                                    <td><?php echo htmlspecialchars($camp['campaign_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($camp['channel_name']); ?></td>
-                                    <td><?php echo htmlspecialchars($camp['list_name']); ?></td>
-                                    <td><span class="badge ok">Running</span></td>
-                                </tr>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($camp['campaign_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($camp['channel_name']); ?></td>
+                                        <td><?php echo htmlspecialchars($camp['list_name']); ?></td>
+                                        <td><span class="badge ok">Running</span></td>
+                                    </tr>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </tbody>
@@ -101,7 +106,7 @@ $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
         <div id="teacher" class="tab-content" style="display: none;">
             <div class="card" style="margin-top: 20px;">
                 <h2>Teacher Management</h2>
-                <p>coming soon...</p>
+                <h3 class="text-center text-gray">coming soon...</h3>
             </div>
         </div>
 
@@ -109,7 +114,7 @@ $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
         <div id="tution" class="tab-content" style="display: none;">
             <div class="card" style="margin-top: 20px;">
                 <h2>Tution Management</h2>
-                <p>coming soon...</p>
+                <h3 class="text-center text-gray">coming soon...</h3>
             </div>
         </div>
 
@@ -117,58 +122,40 @@ $activeCampaigns = $campaignQuery->fetchAll(PDO::FETCH_ASSOC);
         <div id="payment" class="tab-content" style="display: none;">
             <div class="card" style="margin-top: 20px;">
                 <h2>Payment Management</h2>
-                <p>coming soon...</p>
+                <h3 class="text-center text-gray">coming soon...</h3>
             </div>
         </div>
 
     </div>
 
     <script>
-        function openTab(tabName) {
+        function openTab(tabName, btnElement) {
             // Hide all tab contents
             const contents = document.getElementsByClassName('tab-content');
             for (let i = 0; i < contents.length; i++) {
                 contents[i].style.display = 'none';
             }
 
-            // Remove active class from all buttons
+            // Reset active state (scale) for all buttons
             const buttons = document.getElementsByClassName('tab-btn');
             for (let i = 0; i < buttons.length; i++) {
                 buttons[i].classList.remove('active');
-                // Ensure secondary style is kept, but maybe highlight active?
-                // For now, let's just trust the active class state if we had CSS for it.
-                // Since we don't have specific CSS for .active on these buttons yet, 
-                // we might want to change the style dynamically or assume standard btn behavior.
-                buttons[i].style.backgroundColor = '#10b981'; 
+                buttons[i].style.transform = 'scale(1)';
             }
 
             // Show current tab
             document.getElementById(tabName).style.display = 'block';
-            
+
             // Highlight current button
-            // Finding the button that was clicked is harder without passing 'this', 
-            // but we can search by text or just rely on the user adding 'active' style later.
-            // Let's iterate again and check onclick attribute or match text.
-            // Actually, let's just target the button that triggered this.
-            // The improved way is to pass `event` or `this`.
+            if (btnElement) {
+                btnElement.classList.add('active');
+                btnElement.style.transform = 'scale(1.1)';
+            }
         }
 
-        // Initialize buttons opacity
-        document.addEventListener('DOMContentLoaded', () => {
-             const buttons = document.getElementsByClassName('tab-btn');
-             for (let i = 0; i < buttons.length; i++) {
-                //  buttons[i].style.opacity = '0.6';
-                 buttons[i].onclick = function() {
-                     openTab(this.getAttribute('onclick').match(/'([^']+)'/)[1]);
-                     // Reset all opacities
-                    //   for (let j = 0; j < buttons.length; j++) buttons[j].style.opacity = '0.9';
-                     // Set active
-                     this.style.backgroundColor = '#04835bff';
-                 };
-             }
-             // Set default active
-             document.querySelector('button[onclick="openTab(\'marketing\')"]').style.opacity = '1';
-        });
+        // Initialize - ensure default state matches (already set inline for marketing)
+        // No extra JS needed for initialization as inline styles handle default active state
     </script>
 </body>
+
 </html>

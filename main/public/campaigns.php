@@ -43,13 +43,30 @@ $lists->execute([$user_id]);
 $groups = $pdo->prepare("SELECT id, group_name FROM template_groups WHERE user_id = ?");
 $groups->execute([$user_id]);
 
-// 4. Fetch Existing Campaigns
+// 4. Pagination Setup
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 5;
+$offset = ($page - 1) * $limit;
+
+// Count total campaigns
+$count_sql = "SELECT COUNT(*) FROM campaigns WHERE user_id = ?";
+$count_stmt = $pdo->prepare($count_sql);
+$count_stmt->execute([$user_id]);
+$total_campaigns = $count_stmt->fetchColumn();
+$total_pages = ceil($total_campaigns / $limit);
+
+// 5. Fetch Existing Campaigns with Pagination
 $campaigns = $pdo->prepare("SELECT c.*, ch.name as channel_name, cl.list_name 
                             FROM campaigns c 
                             JOIN channels ch ON c.channel_id = ch.id 
                             JOIN contact_lists cl ON c.list_id = cl.id 
-                            WHERE c.user_id = ? ORDER BY c.created_at DESC");
-$campaigns->execute([$user_id]);
+                            WHERE c.user_id = :user_id 
+                            ORDER BY c.created_at DESC 
+                            LIMIT :limit OFFSET :offset");
+$campaigns->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+$campaigns->bindValue(':limit', $limit, PDO::PARAM_INT);
+$campaigns->bindValue(':offset', $offset, PDO::PARAM_INT);
+$campaigns->execute();
 ?>
 
 <!DOCTYPE html>
@@ -142,6 +159,23 @@ $campaigns->execute([$user_id]);
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Controls -->
+            <?php if ($total_pages > 1): ?>
+                <div class="row" style="margin-top: 20px; justify-content: center; align-items: center; gap: 10px;">
+                    <?php if ($page > 1): ?>
+                        <a href="?page=<?php echo $page - 1; ?>" class="btn secondary" style="padding: 8px 16px;">&laquo; Previous</a>
+                    <?php endif; ?>
+
+                    <span class="muted" style="color: var(--muted); font-weight: 500;">
+                        Page <?php echo $page; ?> of <?php echo $total_pages; ?>
+                    </span>
+
+                    <?php if ($page < $total_pages): ?>
+                        <a href="?page=<?php echo $page + 1; ?>" class="btn secondary" style="padding: 8px 16px;">Next &raquo;</a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
         </div>
         <div class="row" style="margin-top: 20px;">
             <a href="index.php" class="btn">Back to Dashboard</a>

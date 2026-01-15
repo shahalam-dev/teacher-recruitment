@@ -70,9 +70,23 @@ if (isset($_POST['import_csv'])) {
     exit;
 }
 
-// 3. Fetch Lists for Dropdowns and Display
-$listStmt = $pdo->prepare("SELECT * FROM contact_lists WHERE user_id = ?");
-$listStmt->execute([$user_id]);
+// 3. Fetch Lists for Dropdowns and Display with Pagination
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$limit = 5;
+$offset = ($page - 1) * $limit;
+
+// Count total lists
+$countStmt = $pdo->prepare("SELECT COUNT(*) FROM contact_lists WHERE user_id = ?");
+$countStmt->execute([$user_id]);
+$total_lists = $countStmt->fetchColumn();
+$total_pages = ceil($total_lists / $limit);
+
+// Fetch lists
+$listStmt = $pdo->prepare("SELECT * FROM contact_lists WHERE user_id = :user_id ORDER BY created_at DESC LIMIT :limit OFFSET :offset");
+$listStmt->bindValue(':user_id', $user_id, PDO::PARAM_INT);
+$listStmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+$listStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$listStmt->execute();
 $myLists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
@@ -134,7 +148,7 @@ $myLists = $listStmt->fetchAll(PDO::FETCH_ASSOC);
                             $countStmt = $pdo->prepare("SELECT COUNT(*) FROM marketing_user_number WHERE list_id = ?");
                             $countStmt->execute([$list['id']]);
                             $count = $countStmt->fetchColumn();
-                            ?>
+                        ?>
                             <tr>
                                 <td><?php echo htmlspecialchars($list['list_name']); ?></td>
                                 <td><?php echo $count; ?></td>
