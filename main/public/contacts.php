@@ -1,6 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../src/Services/AuthService.php';
+require_once __DIR__ . '/../services/AuthService.php';
 
 AuthService::checkAuth();
 $user_id = $_SESSION['user_id'];

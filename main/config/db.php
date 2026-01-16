@@ -4,7 +4,7 @@ $host = 'host.docker.internal';
 // $host = 'localhost';
 $db   = 'mehedi';
 $user = 'root';
-$pass = 'admin'; 
+$pass = 'admin';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$db;charset=utf8mb4", $user, $pass, [

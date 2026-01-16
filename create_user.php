@@ -1,9 +1,9 @@
 <?php
 require_once __DIR__ . '/main/config/db.php';
 
-$username = 'admin';
-$email = 'admin@example.com';
-$password = 'YourSecurePassword123'; // Change this!
+$username = 'admin2';
+$email = 'admin@example2.com';
+$password = 'Mehedi@123'; // Change this!
 $hashedPassword = password_hash($password, PASSWORD_DEFAULT); // Secure hashing
 
 try {
@@ -13,4 +13,3 @@ try {
 } catch (PDOException $e) {
     echo "Error: " . $e->getMessage();
 }
-?>

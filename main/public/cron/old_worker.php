@@ -1,7 +1,7 @@
 <?php
 // 1. Load configuration and services
 require_once __DIR__ . '/../../config/db.php';
-require_once __DIR__ . '/../../src/Services/MessengerService.php';
+require_once __DIR__ . '/../../services/MessengerService.php';
 
 /**
  * BACKGROUND WORKER LOGIC
@@ -79,7 +79,6 @@ try {
         // Anti-spam delay to prevent API blocking
         sleep(2);
     }
-
 } catch (Exception $e) {
     error_log("Worker Error: " . $e->getMessage());
     exit("An error occurred. Check logs.\n");
